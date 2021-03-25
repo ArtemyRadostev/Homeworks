@@ -16,7 +16,7 @@ git config --global user.email atrad96@mail.ru
       cd /home/artemy/lection_git_hw
       touch homework
       git add . ;Добавляет все файлы и директории в репозиторий.
-      git commit -m "Test commit" -a ;Ключ -a коммитит все файлы в директории. ~/git/testing $ git commit -m "Test commit" homework ;Указание конкретного файла.
+      git commit -m "Test commit" -a #Ключ -a коммитит все файлы в директории. ~/git/testing $ git commit -m "Test commit" homework ;Указание конкретного файла.
     
   3. Create branch "hw_git" and insert anything in the file and commit these changes to this branch
   
@@ -35,18 +35,48 @@ git config --global user.email atrad96@mail.ru
   
   5. Merge branch "hw_git" to "master", keep only changes from "hw_git" branch
   
-      
+      git merge hw_git # git merge master
   
   6. Switch to "hw_git" branch again and create new file "temp_file" and commit it
+  
+      touch temp_file
+      git add temp_file
+      git commit -m "temp_file commit" temp_file
+  
   7. Revert to the first commit in "hw_git" branch
+  
+      git log #Выбираю самый первый коммит, выделяя его ID
+      git revert 7cf6983c9fb1ea2f727ae40189c4097f50c06f10    
+  
 2.
   1. Register in Github (if you are not registered yet) and create empty repository "lection_git_hw"
+  
+      *Done*
+  
   2. Set remote from your local repo from task 1 to this new repo (https://help.github.com/articles/changing-a-remote-s-url/)
+  
+      git remote add origin https://github.com/ArtemyRadostev/lection_git_hw.git
+  
   3. Push all branches to the remote repo
+  
+      git push --all origin
+  
   4. Change everything in file "homework" in branch "hw_git" to one line "Hello Github", commit it and push
-  5. Create Pull Request from branch "hw_git" to the master branch and assign me as reviewer to this merge request (@insert_your_github_nickname)
+  
+      vi homework
+      *меняю содержимое файла*
+      git commit -m "Hello Github commit" homework
+      git push --all origin
+  
+  5. Create Pull Request from branch "hw_git" to the master branch and assign me as reviewer to this merge request (https://github.com/SagurovA93)
+  
+      *Done*
+  
 3.
   1. Set up Gitlab CE in docker container (image "gitlab/gitlab-ce:latest", ports to publish – 80 and 22, you can choose any ports to be published on your machine)
+  
+      
+  
   2. Log in as root (it will offer you to change password in gitlab webui on your first visit)
   Make screenshots on each step below, pack them as tgz archive and attach it to your homework
   3. Create group "hw_git"
