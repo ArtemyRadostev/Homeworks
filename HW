@@ -9,11 +9,11 @@ git config --global user.email atrad96@mail.ru
     
     git init lection_git_hw
       
-      >> Initialized empty Git repository in /home/artemy/lection_git_hw/.git/
+      >> Initialized empty Git repository in /home/art/lection_git_hw/.git/
       
   2. Create file "homework" in this repo and commit it in master branch
   
-      cd /home/artemy/lection_git_hw
+      cd /home/art/lection_git_hw
       touch homework
       git add . ;Добавляет все файлы и директории в репозиторий.
       git commit -m "Test commit" -a #Ключ -a коммитит все файлы в директории. ~/git/testing $ git commit -m "Test commit" homework ;Указание конкретного файла.
@@ -39,6 +39,7 @@ git config --global user.email atrad96@mail.ru
   
   6. Switch to "hw_git" branch again and create new file "temp_file" and commit it
   
+      git checkout hw_git
       touch temp_file
       git add temp_file
       git commit -m "temp_file commit" temp_file
