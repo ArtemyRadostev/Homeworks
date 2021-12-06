@@ -18,4 +18,57 @@
     echo "Файл создан успешно."
     fi
 
+ chmod +x ./hw2_script # Делаю файл исполняемым
+ 
+3.Создать 2 файла: 1-й - текстовый с указанием абслютного пути до директории.
+2-й - скрипт, который при выполнении выводит содержимое директории по указанному в первом файле.
+
+ vim path.txt
+  Содержимое файла:
     
+    /home/art/Bash
+  
+ vim hw2_sript_2
+  Содержимое скрипта:
+   
+   #!/bin/bash
+   path=$(</home/art/path.txt)
+   echo $path
+   ls $path
+
+chmod +x ./hw2_script_2
+./hw2_script_2
+ Вывод:
+   /home/art/Bash
+   Damn_it_works.txt
+
+3*.Скрипт выводит отдельно количество файлов и количество директорий.
+
+ Адаптированный скрипт:
+ 
+  #!/bin/bash
+  path=$(</home/art/path.txt)
+  if find $path -maxdepth 1 -type f
+  then
+  echo "Это список файлов"
+  echo "------------------"
+  find $path -maxdepth 1 -type d
+  echo "Это список дерикторий"
+  fi
+
+ Вывод при запуске скрипта:
+ 
+  
+/home/art/Bash/Damn_it_works.txt
+/home/art/Bash/file1
+/home/art/Bash/file2
+/home/art/Bash/file3
+Это список файлов
+------------------
+/home/art/Bash
+/home/art/Bash/dir1
+/home/art/Bash/dir2
+/home/art/Bash/dir3
+Это список дерикторий
+
+  
