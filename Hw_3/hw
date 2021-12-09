@@ -1,1 +1,35 @@
+yum install curl -y
+curl -O -L -k http://www.almhuette-raith.at/apache-log/access.log # Скачиваем access.log в директорию, из которой вводим команду
 
+-AWK-
+
+1. What is the most frequent browser?
+
+  Создаю скрипт "script_awk"
+    Содержимое:
+      
+      BEGIN {FS="\"";a=0;b=0;c=0}
+      {
+      if ($6 ~ "Firefox") a++
+      if ($6 ~ "Chrome") b++
+      if ($6 ~ "Safari") c++
+      }
+      END {print "Firefox " a;print "Chrome " b;print "Safari " c}
+  
+  Затем запускаю awk с аргументом -f, чтобы он использовал его содержимое, как источник:
+  
+    awk -f script_awk access.log
+  
+  Вывод таков:
+   
+   Firefox 49324
+   Chrome 147724
+   Safari 163938
+   
+ Итого получаем информацию о самом частом браузере - Safari
+ 
+2. Show number of requests per month for ip 216.244.66.230 (for example: Sep 2016 - 100500 reqs, Oct 2016 - 0 reqs, Nov 2016 - 2 reqs...)
+
+-
+
+3. 
