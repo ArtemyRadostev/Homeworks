@@ -1,1 +1,157 @@
+========Processes========
 
+1. Run a sleep command three times at different intervals
+	
+	sleep 1000 & [2] #PID: 1798
+	sleep 900 & [3] #PID: 1800
+	sleep 800 & [4] #PID: 1802
+
+2. Send a SIGSTOP signal to all of them in three different ways.
+
+	kill -SIGSTOP 1798
+	kill -19 1800
+	pkill -STOP 1802
+	
+3. Check their statuses with a job command
+
+	jobs -l
+	Вывод команды:
+		[2]   1798 Stopped (signal)        sleep 1000
+		[3]-  1800 Stopped (signal)        sleep 900
+		[4]+  1802 Stopped (signal)        sleep 800
+
+4. Terminate one of them. (Any)
+	kill -SIGKILL 1798
+
+5. To other send a SIGCONT in two different ways.
+	kill -SIGCONT 1800
+	kill -18 1802
+
+6. Kill one by PID and the second one by job ID
+
+	kill -9 1800
+	pkill sleep
+
+========systemd========
+
+1. Write two daemons: one should be a simple daemon and do sleep 10 after a start and then do echo 1 > /tmp/homework, 
+   the second one should be oneshot and do echo 2 > /tmp/homework without any sleep.
+   
+	Daemon 1:
+	
+	vim /lib/systemd/system/daemon_hw4_1.service # создаю и редактирую демон
+		Содержимое файла:
+	
+			[Unit]
+			Description=Daemon 1 (Echo 1)
+
+			[Service]
+			Type=simple
+			Restart=always
+			RestartSec=1
+			User=art
+			ExecStart=/home/art/daemon1
+
+	vi /home/art/daemon1
+		Содержимое файла:
+		
+			#!/bin/bash
+			sleep 10
+			echo 1 > /tmp/homework
+			
+	chmod +x daemon1 #делаю файл исполняемым
+	systemctl daemon-reload
+	
+	Daemon 2:
+	
+	vim /lib/systemd/system/daemon_hw4_2.service
+		Содержимое файла:
+			
+				[Unit]
+				Description=Daemon 2 (Echo 2)
+				[Service]
+				Type=simple
+				User=art
+				ExecStart=/home/art/daemon2
+				
+	vim daemon2
+		Содержимое файла:
+				
+				#!/bin/bash
+				echo 2 > /tmp/homework
+				
+	systemctl daemon-reload
+  
+2. Make the second depended on the first one (should start only after the first)
+
+	vi /lib/systemd/system/daemon_hw4_2.service
+	 Содержимое файла:
+			
+			[Unit]
+			Description=Daemon 2 (Echo without sleep)
+			After=daemon_hw4_1.service # Демон будет запускаться после какого-либо сервиса или группы сервисов (в нашем случае - после запуска daemon_hw4_1.service)
+			[Service]
+			Type=simple
+			User=art
+			ExecStart=/home/art/daemon2
+      
+3. Write a timer for the second one and configure it to run on 01.01.2019 at 00:00
+
+	vi /lib/systemd/system/daemon_hw4_2.timer
+		Содержимое файла:
+		
+					[Unit]
+					Description=Run daemon_hw4_2 at 2019-01-01 00:00
+
+					[Timer]
+					OnCalendar=2019-01-01 00:00
+					Unit=daemon_hw4_2.service
+
+					[Install]
+					WantedBy=timers.target
+          
+4. Start all daemons and timer, check their statuses, timer list and /tmp/homework
+
+	systemctl start daemon_hw4_1.service # Запуск первого демона
+	systemctl -l status daemon_hw4_1.service
+		Вывод:
+    
+      
+    ● daemon_hw4_1.service - Daemon 1 (Echo 1)
+      Loaded: loaded (/usr/lib/systemd/system/daemon_hw4_1.service; static; vendor preset: disabled)
+      Active: active (running) since Mon 2021-12-13 12:11:43 MSK; 7s ago
+    Main PID: 1986 (daemon1)
+      CGroup: /system.slice/daemon_hw4_1.service
+               ├─1986 /bin/bash /home/art/daemon1
+               └─1987 sleep 10
+
+ cat /tmp/homework
+	Вывод:
+	 1
+   
+systemctl start daemon_hw4_2.service # Запускаю второго демона
+systemctl -l status daemon_hw4_2.service
+
+  Вывод:
+  
+     Dec 13 12:14:00 localhost.localdomain systemd[1]: Started Daemon 2 (Echo 2).
+     
+cat /tmp/homework
+  Вывод:
+    2
+
+systemctl start daemon_hw4_2.timer # Запускаю таймер
+systemctl status daemon_hw4_2.timer
+  Вывод:
+   
+   ● daemon_hw4_2.timer - Run daemon_hw4_2 at 2019-01-01 00:00
+   Loaded: loaded (/usr/lib/systemd/system/daemon_hw4_2.timer; disabled; vendor preset: disabled)
+   Active: active (elapsed) since Mon 2021-12-13 12:10:15 MSK; 5min ago
+   
+5. Stop all daemons and timer
+
+	systemctl stop daemon_hw4_2.timer
+	systemctl stop daemon_hw4_2.service
+	systemctl stop daemon_hw4_1.service
+  
+========cron/anacron========
