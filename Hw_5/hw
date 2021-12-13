@@ -39,7 +39,7 @@
    
 	Daemon 1:
 	
-	vim /lib/systemd/system/daemon_hw4_1.service # создаю и редактирую демон
+	vi /lib/systemd/system/daemon_hw4_1.service # создаю и редактирую демон
 		Содержимое файла:
 	
 			[Unit]
@@ -64,7 +64,7 @@
 	
 	Daemon 2:
 	
-	vim /lib/systemd/system/daemon_hw4_2.service
+	vi /lib/systemd/system/daemon_hw4_2.service
 		Содержимое файла:
 			
 				[Unit]
@@ -74,7 +74,7 @@
 				User=art
 				ExecStart=/home/art/daemon2
 				
-	vim daemon2
+	vi daemon2
 		Содержимое файла:
 				
 				#!/bin/bash
@@ -155,3 +155,75 @@ systemctl status daemon_hw4_2.timer
 	systemctl stop daemon_hw4_1.service
   
 ========cron/anacron========
+
+1.Create an anacron job which executes a script with echo Hello > /opt/hello and runs every 2 days
+
+vi /etc/anacrontab
+      Добавляю в него строку:
+         2       1       cron.daily              Hello echo     /etc/hello
+   vi /etc/hello
+        Записываю в него работу:
+                #!/bin/bash
+                echo Hello > /opt/Hello
+    anacron -f # запускаю все работы, вне зависимости от их назначенного времени
+    cat /opt/hello
+      Вывод:
+            Hello
+	
+2. Create a cron job which executes the same command (will be better to create a script for this) and runs it in 1 minute after system boot.
+
+	sudo crontab -e
+		Ввод:
+			
+			#Hello echo every two days
+			0 0 */2 * * echo Hello > /opt/hello
+			#Echo reboot message
+			@reboot sleep 60 && echo Hello > /opt/hello
+
+3. Restart your virtual machine and check previous job proper execution
+
+	*ждём одну минуту*
+	ls /opt
+	  Вывод:
+		hello
+		
+		
+
+========lsof========
+
+1. Run a sleep command, redirect stdout and stderr into two different files (both of them will be empty).
+
+	sleep 100 2>> sleep_output1>> sleep_output2
+	ls -> sleep_output1 sleep_output2 # В текущей директории появились аутпуты обоих команд
+
+2. Find with the lsof command which files this process uses, also find out where it gets stdout from.
+	
+	sudo lsof /usr/bin/sleep # делаю это для того, чтобы узнать PID
+	sudo lsof -p 2257
+	 Вывод:
+		
+sleep   1928 art  cwd    DIR  253,0      4096  4194383 /home/art
+sleep   1928 art  rtd    DIR  253,0       238       64 /
+sleep   1928 art  txt    REG  253,0     33128 12692434 /usr/bin/sleep
+sleep   1928 art  mem    REG  253,0 106172832 12799787 /usr/lib/locale/locale-archive
+sleep   1928 art  mem    REG  253,0   2156272    15673 /usr/lib64/libc-2.17.so
+sleep   1928 art  mem    REG  253,0    163312    15666 /usr/lib64/ld-2.17.so
+sleep   1928 art    0u   CHR    4,1       0t0     1043 /dev/tty1
+sleep   1928 art    1w   REG  253,0         0  4201822 /home/art/sleep_output2
+sleep   1928 art    2w   REG  253,0         0  4751214 /home/art/sleep_output1
+
+3. List all ESTABLISHED TCP connections ONLY with lsof
+
+	sudo lsof -n -i4 -itcp
+    	  Вывод:
+		
+		COMMAND   PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+		chronyd   683 chrony    5u  IPv4  14143      0t0  UDP 127.0.0.1:323
+		dhclient  826   root    6u  IPv4  16827      0t0  UDP *:bootpc
+		dhclient  829   root    6u  IPv4  16348      0t0  UDP *:bootpc
+		sshd     1070   root    3u  IPv4  17233      0t0  TCP *:ssh (LISTEN)
+		master   1247   root   13u  IPv4  18367      0t0  TCP 127.0.0.1:smtp (LISTEN)
+		sshd     1570   root    3u  IPv4  18702      0t0  TCP 192.168.56.117:ssh->192.168.56.1:56044 (ESTABLISHED)                                                                                                                                             
+		sshd     1575    art    3u  IPv4  18702      0t0  TCP 192.168.56.117:ssh->192.168.56.1:56044 (ESTABLISHED)                                                                                                                                             
+
+
