@@ -1,0 +1,105 @@
+				========Task 1. Users and groups========
+																		
+1. Создайте группу sales с GID 4000 и пользователей bob, alice, eve c основной группой sales.
+
+	groupadd -g 4000 sales #создаю группу с айди 4000
+	useradd -g sales bob #создаю трёх новых юзеров, с попыткой сразу добавить их в группу (попытка оказалась неудачной)
+	useradd -g sales alice
+	useradd -g sales eve
+	usermod -a -G sales bob #добавляю юзеров в группу мануальным путём
+	usermod -a -G sales alice
+	usermod -a -G sales eve
+  
+2. Измените пользователям пароли.
+
+	passwd bob  ----> password set to: bob
+	passwd alice ---> password set to: alice
+	passwd eve -----> password set to: eve
+  
+3. Все новые аккаунты должны обязательно менять свои пароли каждый 30 дней.
+
+	chage -m 30 -M 30 bob
+	chage -m 30 -M 30 alice
+	chage -m 30 -M 30 eve
+	
+  ~Все будущие юзеры должны обязательно менять пароль каждые 30 дней.
+  
+  	Глобальный файл-конфиг паролей находится в файле login.defs, который расположен в /etc
+	
+		vi /etc/login.defs
+		
+	Нахожу строку "PASS_MAX_DAYS" (В vi можно исопльщовать поиск с помощью "/"). По дефолту в ней стоит значение "99999", просто меняю его на "30".
+	С этих пор все НОВЫЕ (существующих юзеров это изменение не коснётся) буду обязаны менять свои пароли каждые 30 дней.
+  
+4. Новые аккаунты группы sales должны истечь по окончанию 90 дней срока, а bob должен изменять его пароль каждые 15 дней.
+
+	chage -m 15 bob #Теперь Боб должен менять свой пароль каждые 15 дней
+	chage -E $(date -d +90days +%Y-%m-%d) alice #Аккаунты Алисы и Евы перестанут действовать через 90 дней
+	chage -E $(date -d +90days +%Y-%m-%d) eve
+  
+5.Заставьте пользователей сменить пароль после первого логина.
+
+	passwd --expire bob
+	passwd --expire alice #Заставляю юзеров менять пароль при их следующем/первом логине
+	passwd --expire eve
+  
+  
+                                ========Task 2. Controlling access to files with Linux file system permissions========
+                                
+                                
+  Создайте трёх пользователей glen, antony, lesly. У вас должна быть директория /home/students, где эти три пользователя могут работать совместно с файлами. 
+ Должен быть возможен только пользовательский и групповой доступ, создание и удаление файлов в /home/students. Файлы, созданные в этой директории, должны автоматически присваиваться группе студентов students.
+
+	useradd glen
+	useradd antony
+	useradd lesly
+	mkdir /home/students
+	~sudo chmod 660 /home/students#делаю пользовательский и групповой доступ к директории students
+    groupadd stundets
+	usermod -a -G students glen
+	usermod -a -G students antony
+	usermod -a -G students lesly
+	~sudo chgrp students /home/students#меняю группу-владельца директории
+	~sudo chmod g+s /home/students#выполняю условие, при котором файлы, созданные в директории, присваиваются группе students
+	
+		Проверка прав директории /students
+			
+			su root
+			touch test.txt /home/students  -> файл создаётся от рута
+			
+			su art
+			touch test2.txt /home/students -> "touch: cannot touch ‘test2.txt’: Permission denied"
+
+
+						========Task 3. ACL========
+
+1. Создаю общую директорию /shares/cases
+   sudo mkdir -p /shares/cases
+   
+2. Создаю группу bakerstreet с пользователями holmes, watson
+   sudo groupadd bakerstreet #Создаю группу
+   sudo useradd -g bakerstreet holmes #создаю пользователей
+   sudo useradd -g bakerstreet watson
+  ~sudo passwd holmes -> holmes
+  ~sudo passwd watson -> watson
+3. Создаю группу scotlandyard с пользователями lestrade, gregson, jones
+   sudo groupadd scotlandyard
+   sudo useradd -g scotlandyard lestrade
+   sudo useradd -g scotlandyard gregson
+   sudo useradd -g scotlandyard jones
+  ~sudo passwd lestrade -> lestrade
+  ~sudo passwd gregson -> gregson
+  ~sudo passwd jones -> jones
+4. Твики доступа к файлам
+   sudo chgrp bakerstreet /shares/cases #Меняю группу-владельца директории
+   sudo chmod g+s /shares/cases    #Выставляю условие, при котором файлы, созданные в директории присваиваются группе students
+	#Создаю файлы murders.txt и moriarty.txt
+   sudo touch /shares/cases/murders.txt
+   sudo touch /shares/cases/moriarty.txt
+	#Задаю права для файлов (rw-rw----)
+   sudo chmod 660 /shares/cases/moriarty.txt
+   sudo chmod 660 /shares/cases/murders.txt
+	#Задаю права для scotlandyard
+   sudo setfacl -R -m g:scotlandyard:rwx /shares/cases   sudo setfacl -R -m d:g:scotlandyard:rw /shares/cases/
+	#Задаю права для jones
+   sudo setfacl -R -m u:jones:rx /shares/cases
