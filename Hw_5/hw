@@ -1,0 +1,229 @@
+========Processes========
+
+1. Run a sleep command three times at different intervals
+	
+	sleep 1000 & [2] #PID: 1798
+	sleep 900 & [3] #PID: 1800
+	sleep 800 & [4] #PID: 1802
+
+2. Send a SIGSTOP signal to all of them in three different ways.
+
+	kill -SIGSTOP 1798
+	kill -19 1800
+	pkill -STOP 1802
+	
+3. Check their statuses with a job command
+
+	jobs -l
+	Вывод команды:
+		[2]   1798 Stopped (signal)        sleep 1000
+		[3]-  1800 Stopped (signal)        sleep 900
+		[4]+  1802 Stopped (signal)        sleep 800
+
+4. Terminate one of them. (Any)
+	kill -SIGKILL 1798
+
+5. To other send a SIGCONT in two different ways.
+	kill -SIGCONT 1800
+	kill -18 1802
+
+6. Kill one by PID and the second one by job ID
+
+	kill -9 1800
+	pkill sleep
+
+========systemd========
+
+1. Write two daemons: one should be a simple daemon and do sleep 10 after a start and then do echo 1 > /tmp/homework, 
+   the second one should be oneshot and do echo 2 > /tmp/homework without any sleep.
+   
+	Daemon 1:
+	
+	vi /lib/systemd/system/daemon_hw4_1.service # создаю и редактирую демон
+		Содержимое файла:
+	
+			[Unit]
+			Description=Daemon 1 (Echo 1)
+
+			[Service]
+			Type=simple
+			Restart=always
+			RestartSec=1
+			User=art
+			ExecStart=/home/art/daemon1
+
+	vi /home/art/daemon1
+		Содержимое файла:
+		
+			#!/bin/bash
+			sleep 10
+			echo 1 > /tmp/homework
+			
+	chmod +x daemon1 #делаю файл исполняемым
+	systemctl daemon-reload
+	
+	Daemon 2:
+	
+	vi /lib/systemd/system/daemon_hw4_2.service
+		Содержимое файла:
+			
+				[Unit]
+				Description=Daemon 2 (Echo 2)
+				[Service]
+				Type=simple
+				User=art
+				ExecStart=/home/art/daemon2
+				
+	vi daemon2
+		Содержимое файла:
+				
+				#!/bin/bash
+				echo 2 > /tmp/homework
+				
+	systemctl daemon-reload
+  
+2. Make the second depended on the first one (should start only after the first)
+
+	vi /lib/systemd/system/daemon_hw4_2.service
+	 Содержимое файла:
+			
+			[Unit]
+			Description=Daemon 2 (Echo without sleep)
+			After=daemon_hw4_1.service # Демон будет запускаться после какого-либо сервиса или группы сервисов (в нашем случае - после запуска daemon_hw4_1.service)
+			[Service]
+			Type=simple
+			User=art
+			ExecStart=/home/art/daemon2
+      
+3. Write a timer for the second one and configure it to run on 01.01.2019 at 00:00
+
+	vi /lib/systemd/system/daemon_hw4_2.timer
+		Содержимое файла:
+		
+					[Unit]
+					Description=Run daemon_hw4_2 at 2019-01-01 00:00
+
+					[Timer]
+					OnCalendar=2019-01-01 00:00
+					Unit=daemon_hw4_2.service
+
+					[Install]
+					WantedBy=timers.target
+          
+4. Start all daemons and timer, check their statuses, timer list and /tmp/homework
+
+	systemctl start daemon_hw4_1.service # Запуск первого демона
+	systemctl -l status daemon_hw4_1.service
+		Вывод:
+    
+      
+    ● daemon_hw4_1.service - Daemon 1 (Echo 1)
+      Loaded: loaded (/usr/lib/systemd/system/daemon_hw4_1.service; static; vendor preset: disabled)
+      Active: active (running) since Mon 2021-12-13 12:11:43 MSK; 7s ago
+    Main PID: 1986 (daemon1)
+      CGroup: /system.slice/daemon_hw4_1.service
+               ├─1986 /bin/bash /home/art/daemon1
+               └─1987 sleep 10
+
+ cat /tmp/homework
+	Вывод:
+	 1
+   
+systemctl start daemon_hw4_2.service # Запускаю второго демона
+systemctl -l status daemon_hw4_2.service
+
+  Вывод:
+  
+     Dec 13 12:14:00 localhost.localdomain systemd[1]: Started Daemon 2 (Echo 2).
+     
+cat /tmp/homework
+  Вывод:
+    2
+
+systemctl start daemon_hw4_2.timer # Запускаю таймер
+systemctl status daemon_hw4_2.timer
+  Вывод:
+   
+   ● daemon_hw4_2.timer - Run daemon_hw4_2 at 2019-01-01 00:00
+   Loaded: loaded (/usr/lib/systemd/system/daemon_hw4_2.timer; disabled; vendor preset: disabled)
+   Active: active (elapsed) since Mon 2021-12-13 12:10:15 MSK; 5min ago
+   
+5. Stop all daemons and timer
+
+	systemctl stop daemon_hw4_2.timer
+	systemctl stop daemon_hw4_2.service
+	systemctl stop daemon_hw4_1.service
+  
+========cron/anacron========
+
+1.Create an anacron job which executes a script with echo Hello > /opt/hello and runs every 2 days
+
+vi /etc/anacrontab
+      Добавляю в него строку:
+         2       1       cron.daily              Hello echo     /etc/hello
+   vi /etc/hello
+        Записываю в него работу:
+                #!/bin/bash
+                echo Hello > /opt/Hello
+    anacron -f # запускаю все работы, вне зависимости от их назначенного времени
+    cat /opt/hello
+      Вывод:
+            Hello
+	
+2. Create a cron job which executes the same command (will be better to create a script for this) and runs it in 1 minute after system boot.
+
+	sudo crontab -e
+		Ввод:
+			
+			#Hello echo every two days
+			0 0 */2 * * echo Hello > /opt/hello
+			#Echo reboot message
+			@reboot sleep 60 && echo Hello > /opt/hello
+
+3. Restart your virtual machine and check previous job proper execution
+
+	*ждём одну минуту*
+	ls /opt
+	  Вывод:
+		hello
+		
+		
+
+========lsof========
+
+1. Run a sleep command, redirect stdout and stderr into two different files (both of them will be empty).
+
+	sleep 100 2>> sleep_output1>> sleep_output2
+	ls -> sleep_output1 sleep_output2 # В текущей директории появились аутпуты обоих команд
+
+2. Find with the lsof command which files this process uses, also find out where it gets stdout from.
+	
+	sudo lsof /usr/bin/sleep # делаю это для того, чтобы узнать PID
+	sudo lsof -p 2257
+	 Вывод:
+		
+sleep   1928 art  cwd    DIR  253,0      4096  4194383 /home/art
+sleep   1928 art  rtd    DIR  253,0       238       64 /
+sleep   1928 art  txt    REG  253,0     33128 12692434 /usr/bin/sleep
+sleep   1928 art  mem    REG  253,0 106172832 12799787 /usr/lib/locale/locale-archive
+sleep   1928 art  mem    REG  253,0   2156272    15673 /usr/lib64/libc-2.17.so
+sleep   1928 art  mem    REG  253,0    163312    15666 /usr/lib64/ld-2.17.so
+sleep   1928 art    0u   CHR    4,1       0t0     1043 /dev/tty1
+sleep   1928 art    1w   REG  253,0         0  4201822 /home/art/sleep_output2
+sleep   1928 art    2w   REG  253,0         0  4751214 /home/art/sleep_output1
+
+3. List all ESTABLISHED TCP connections ONLY with lsof
+
+	sudo lsof -n -i4 -itcp
+    	  Вывод:
+		
+		COMMAND   PID   USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+		chronyd   683 chrony    5u  IPv4  14143      0t0  UDP 127.0.0.1:323
+		dhclient  826   root    6u  IPv4  16827      0t0  UDP *:bootpc
+		dhclient  829   root    6u  IPv4  16348      0t0  UDP *:bootpc
+		sshd     1070   root    3u  IPv4  17233      0t0  TCP *:ssh (LISTEN)
+		master   1247   root   13u  IPv4  18367      0t0  TCP 127.0.0.1:smtp (LISTEN)
+		sshd     1570   root    3u  IPv4  18702      0t0  TCP 192.168.56.117:ssh->192.168.56.1:56044 (ESTABLISHED)                                                                                                                                             
+		sshd     1575    art    3u  IPv4  18702      0t0  TCP 192.168.56.117:ssh->192.168.56.1:56044 (ESTABLISHED)                                                                                                                                             
+
+
