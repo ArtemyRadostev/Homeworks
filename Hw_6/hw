@@ -1,1 +1,25 @@
+#localhost - your CentOS VM running in VirtualBox
+#remotehost - 18.221.144.175 (public IP)
+#webserver - 172.31.45.237 (private IP)
 
+======Task 1
+1.1 SSH to remotehost using username and password provided to you in Slack. Log out from remotehost.
+  ssh Artemii_Radostev@18.221.144.175 # устанавливаю соединение
+    -> yes
+    -> password: ijia8aiThiez
+    
+    Подключение было установлено:
+    
+        
+       __|  __|_  )
+       _|  (     /   Amazon Linux 2 AMI
+      ___|\___|___|
+
+      https://aws.amazon.com/amazon-linux-2/
+      No packages needed for security; 2 packages available
+      Run "sudo yum update" to apply all updates.
+      [Artemii_Radostev@ip-172-31-33-155 ~]$
+
+ logout # разрываю соединение
+ 
+1.2. Generate new SSH key-pair on your localhost with name "hw-5" (keys should be created in ~/.ssh folder).
