@@ -50,5 +50,25 @@
     Number of key(s) added: 1
     
 1.4 SSH to remotehost without password. Log out from remotehost.
- ssh -i ~/.ssh/hw_5 Artemii_Radostev@18.221.144.175
+ ssh -i ~/.ssh/hw_5 Artemii_Radostev@18.221.144.175 # соединение успешно
  logout
+
+# Вопрос: почему система по-прежнему требует пароль при попытке подключения через команду 'ssh Artemii_Radostev@18.221.144.175'?
+
+1.5. Create SSH config file, so that you can SSH to remotehost simply running `ssh remotehost` command. As a result, provide output of command `cat ~/.ssh/config`.
+ vi ~/.ssh/config # создаю и попутно настраиваю конфиг файл
+ chmod 600 ~/.ssh/config # меняю права так, чтобы файл был "readable" и "Writable" только для owner'а. Иначе система будет ругаться на права
+ cat ~/.ssh/config
+  Вывод:
+  
+  Host remotehost
+   HostName 18.221.144.175
+   User Artemii_Radostev
+   Port 22
+   IdentityFile /home/art/.ssh/hw_5
+  
+ ssh remotehost # соединение успешно
+ 
+1.6 Using command line utility (curl or telnet) verify that there are some webserverrunning on port 80 of webserver. 
+Notice that webserver has a private network IP, so you can access it only from the same network (when you are on remotehost that runs
+in the same private network). Log out from remotehost.
