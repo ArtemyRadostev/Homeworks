@@ -1,0 +1,17 @@
+-1  #	Instructs ssh to use protocol version 1
+-2  #	Instructs ssh to use protocol version 2.
+-4  #	Permits only IPv4 addresses.
+-6  # Permits only IPv6 addresses.
+-A  #	Enables authentication agent connection forwarding. Use this option with caution.
+-a  #	Disables authentication agent connection forwarding.
+-b  'bind_address'  #	Use this option on the local host with more than one address to set the source address of the connection.
+-C  #	Enables data compression for all files. Only to be used with slow connections.
+-c 'cipher_spec'  #	Use to select a cipher specification. List the values separated by a comma.
+-E 'log_fileName' #	Attaches debug logs to log_file instead of standard error.
+-f  #	Sends ssh to background, even before entering a password or passphrase.
+-g  #	Permits remote hosts to connect to ports forwarded on a local machine.
+-q  #	Runs ssh in quiet mode. It suppresses most error or warning messages.
+-V  #	Displays the version of ssh tool and exits.
+-v  #	Prints debugging messages for ssh connection. The verbose mode is useful when troubleshooting configuration issues.
+-X  #	Use this option to enable X11 forwarding.
+-x  #	Disable X11 forwarding.
