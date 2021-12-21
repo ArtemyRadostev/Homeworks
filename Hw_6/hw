@@ -72,3 +72,142 @@
 1.6 Using command line utility (curl or telnet) verify that there are some webserverrunning on port 80 of webserver. 
 Notice that webserver has a private network IP, so you can access it only from the same network (when you are on remotehost that runs
 in the same private network). Log out from remotehost.
+
+ ssh remotehost
+ curl 172.31.45.237
+  Вывод:
+    
+    
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd"><html><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+                <title>Apache HTTP Server Test Page powered by CentOS</title>
+                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <!-- Bootstrap -->
+    <link href="/noindex/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="noindex/css/open-sans.css" type="text/css" />
+
+<style type="text/css"><!--
+
+body {
+  font-family: "Open Sans", Helvetica, sans-serif;
+  font-weight: 100;
+  color: #ccc;
+  background: rgba(10, 24, 55, 1);
+  font-size: 16px;
+}
+
+h2, h3, h4 {
+  font-weight: 200;
+}
+
+h2 {
+  font-size: 28px;
+}
+
+.jumbotron {
+  margin-bottom: 0;
+  color: #333;
+  background: rgb(212,212,221); /* Old browsers */
+  background: radial-gradient(ellipse at center top, rgba(255,255,255,1) 0%,rgba(174,174,183,1) 100%); /* W3C */
+}
+
+.jumbotron h1 {
+  font-size: 128px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0px 2px 0px #abc,
+               0px 4px 10px rgba(0,0,0,0.15),
+               0px 5px 2px rgba(0,0,0,0.1),
+               0px 6px 30px rgba(0,0,0,0.1);
+}
+
+.jumbotron p {
+  font-size: 28px;
+  font-weight: 100;
+}
+
+.main {
+   background: white;
+   color: #234;
+   border-top: 1px solid rgba(0,0,0,0.12);
+   padding-top: 30px;
+   padding-bottom: 40px;
+}
+
+.footer {
+   border-top: 1px solid rgba(255,255,255,0.2);
+   padding-top: 30px;
+}
+
+    --></style>
+</head>
+<body>
+  <div class="jumbotron text-center">
+    <div class="container">
+          <h1>Hello!</h1>
+                <p class="lead">You are here because you're probably a DevOps courses member. In that case you should open <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"> THIS LINK </a></p>
+                </div>
+  </div>
+</body></html>
+
+logout
+
+1.7 Using SSH setup port forwarding, so that you can reach  webserver from your localhost (choose any free local port you like).
+ssh -L 8912:172.31.45.237:80 Artemii_Radostev@18.221.144.175
+
+1.8 Like in 1.6, but on localhost using command line utility verify that localhost and port you have specified act like webserver, returning same result as in 1.6.
+
+-
+
+======Task 2
+
+2.1. Imagine your localhost has been relocated to Havana. Change the time zone on the localhost to Havana and verify the time zone has been changed properly (may be multiple commands).
+
+tzselect -> America (2); Cuba (16);
+	timedatectl set-timezone America/Havana
+	timedatectl
+    Вывод:
+      
+            Local time: Sun 2021-12-19 10:06:18 CST
+            Universal time: Sun 2021-12-19 15:06:18 UTC
+            RTC time: Sun 2021-12-19 15:06:17
+            Time zone: America/Havana (CST, -0500)
+            NTP enabled: yes
+            NTP synchronized: yes
+            RTC in local TZ: no
+            DST active: no
+            Last DST change: DST ended at
+                              Sun 2021-11-07 00:59:59 CDT
+                              Sun 2021-11-07 00:00:00 CST
+            Next DST change: DST begins (the clock jumps one hour forward) at
+                              Sat 2022-03-12 23:59:59 CST
+                              Sun 2022-03-13 01:00:00 CDT
+
+
+ timedatectl set-timezone Europe/Moscow # возвращаю прежний часовой пояс
+ 
+2.2 Find all systemd journal messages on localhost, that were recorded in the last 50 minutes and originate from a system service started with user id 81 (single command).
+
+journalctl --since "50 min ago" _UID=81
+
+2.3 onfigure  rsyslogd  by adding  a  rule  to  the  newly created configuration file 
+/etc/rsyslog.d/auth-errors.conf to log all security and authentication messages with the
+priority alert and higher to the  /var/log/auth-errors file. Test the newly added log
+directive with the logger command (multiple commands).
+
+vi /etc/rsyslog.d/auth-errors.conf
+  Содержимое файла:
+				
+				auth,authpriv.alert /var/log/auth-errors
+				
+service rsyslog restart
+logger -p auth.alert "Oh boy, an alert message"
+cat /var/log/auth-errors
+  Вывод:
+  
+    Dec 19 10:13:49 localhost art: Oh boy, an alert message
+
+
+
+
