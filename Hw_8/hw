@@ -71,4 +71,61 @@ brw-rw----. 1 root disk      8,  17 Dec 22 20:11 sdb1
   
  2. LVM. Imagine you're running out of space on your root device. As we found out during the lesson default CentOS installation should already have LVM, means you can easily extend size of your root device. So what are you waiting for? Just do it! 
   
+ 2.1. Create 2GB partition on /dev/sdc of type "Linux LVM"
+ 
+  fdisk /dev/sdb
+   n
+   p # primary type
+   3 # partition number
+   *first sector is default*
+   +2GB # last sector
+   t # change the type
+   3 # choose partition
+   8e # Linux LVM type
+   w
   
+ 2.2. Initialize the partition as a physical volume (PV)
+  
+   pvcreate /dev/sdb3
+   
+ 2.3. Extend the volume group (VG) of your root device using your newly created PV
+   
+   vgextend centos /dev/sdb3
+ 
+2.4 Extend your root logical volume (LV) by 1GB, leaving other 1GB unassigned
+ 
+  lvextend -L+1G /dev/centos/root
+  
+2.5 Check current disk space usage of your root device
+ 
+ df -h | grep root
+			Output:
+				
+				/dev/mapper/centos-root  6.2G  5.3G  922M  86%
+ 
+ 
+ 2.6 Extend your root device filesystem to be able to use additional free space of root LV
+ 
+  xfs_growfs /dev/mapper/centos-root
+  
+ 2.7. Verify that after reboot your root device is still 1GB bigger than at 2.5.
+ 
+  reboot now
+	  *wait for system reboot*
+	  df -h | grep root
+	  	Output:
+		
+			  /dev/mapper/centos-root  7.2G  5.3G  1.9G  74%
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
