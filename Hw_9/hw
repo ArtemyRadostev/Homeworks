@@ -1,1 +1,187 @@
+ ip a | grep enp0s8
+  Вывод:
+     enp0s8:
+      inet 192.168.56.117/24 brd 192.168.56.255
+    
 
+
+
+
+1. add secondary ip address to you second network interface enp0s8. Each point must be presented with commands and showing that new address was applied to the interface. To repeat adding address for points 2 and 3 address must be deleted (please add deleting address to you homework log) Methods:
+   1. using ip utility (stateless)
+   
+    
+   
+   2. using centos network configuration file (statefull)
+   
+    ls /etc/sysconfig/network-scripts/ | grep 0s8 # look for config file
+      Output:
+        ifcfg-enp0s8
+    vi /etc/sysconfig/network-scripts/ifcfg-enp0s8:1 # create a sub-interface config file
+      Content:
+      
+        DEVICE=enp0s8:1
+        Type=Ethernet
+        ONBOOT=yes
+        NM_CONTROLLED=no
+        BOOTPROTO=none
+        IPADDR=192.168.56.118
+        PREFIX=24
+    reboot now
+    *waiting for erboot*
+    ip a | grep enp0s8
+     Output:
+     
+       inet 192.168.56.117/24 brd 192.168.56.255 scope global noprefixroute dynamic enp0s8
+       inet 192.168.56.118/24 brd 192.168.56.255 scope global secondary noprefixroute enp0s8:1
+
+    #Putty is able to establish connection with 192.168.56.118
+   rm /etc/sysconfig/network-scripts/ifcfg-enp0s8:1 # deleting config file
+   
+   3. using nmcli utility (statefull)
+
+   nmcli connection show
+    Output:
+        NAME    UUID                                  TYPE      DEVICE
+        enp0s3  fca59428-6f9a-4c83-a629-4381e63d2362  ethernet  enp0s3
+        enp0s8  36fd3cae-f4cb-4a8b-8aa7-02ec9056fa74  ethernet  enp0s8
+   nmcli con mod enp0s8 +ipv4.addresses "192.168.56.118/24"
+   reboot now
+   *waiting*
+   ip a | grep enp0s8
+    Output:
+    
+        3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+         inet 192.168.56.117/24 brd 192.168.56.255 scope global noprefixroute dynamic enp0s8
+         inet 192.168.56.118/24 brd 192.168.56.255 scope global secondary noprefixroute enp0s8
+
+ 2. You should have a possibility to use ssh client to connect to your node using new address from previous step. 
+ Run tcpdump in separate tmux session or separate connection before starting ssh client and capture packets that are related to this ssh connection. 
+ Find packets that are related to TCP session establish.
+ 
+  yum install tcpdump -y
+  tcpdump -i enp0s8 port 22 # these option will capture only pockets from interface enp0s8 and port 22 (ssh actually)
+  # a lot of packets was captured
+ Capturing TCP packets:
+  Оооооокей. Для начала стартуем TCP-сервер с терминала №1:
+   nc -lk 12345
+  Затем, открываю терминал №2 и удостоверяюсь, что порт 12345 "слушает":
+   netstat -anp | grep 12345
+    Вывод:
+    
+      tcp        0      0 0.0.0.0:12345           0.0.0.0:*               LISTEN      2141/nc
+   
+  Слушает. Идём дальше. Стартуем на треминале №2 TCP-сервер, который будет устанавливать содение с TCP-сервером терминала №1:
+  
+   telnet 127.0.0.1 12345
+    Вывод:
+    
+      Trying 127.0.0.1...
+      Connected to 127.0.0.1.
+      Escape character is '^]'.
+   
+  Соединение установил, хорошо. Открываем терминал №3 и удостоверяемся, что соединение держится:
+  
+   netstat -anp | grep 12345
+    Вывод:
+    
+      tcp        0      0 127.0.0.1:42418         127.0.0.1:12345         ESTABLISHED 
+      
+  Порядок. Разрываем соединение с терминала №2. Теперь, на терминале №3 запускаем tcpdump:
+  
+   tcpdump -i lo -nnn port 12345
+  
+  Затем, снова устанавливаем соединение с терминала №2 на TCP-сервер. И смотрим вывод tcpdump'а:
+  
+    listening on lo, link-type EN10MB (Ethernet), capture size 262144 bytes
+    23:25:29.873888 IP 127.0.0.1.42420 > 127.0.0.1.12345: Flags [S], seq 3640431313,            win 43690, options [mss 65495,sackOK,TS val 2958826 ecr 0,nop,wscale 7], length            0
+    23:25:29.873901 IP 127.0.0.1.12345 > 127.0.0.1.42420: Flags [S.], seq 290508066,            ack 3640431314, win 43690, options [mss 65495,sackOK,TS val 2958826 ecr 2958826           ,nop,wscale 7], length 0
+    23:25:29.873910 IP 127.0.0.1.42420 > 127.0.0.1.12345: Flags [.], ack 1, win 342,            options [nop,nop,TS val 2958826 ecr 2958826], length 0
+
+  Вот и они. Пакеты, пойманные во время установки соединения
+  
+ 3. Close session. Find in tcpdump output packets that are related to TCP session closure. 
+  
+   Терминал №2: разрываем соединение с TCP-сервером:
+   
+    Ctrl+]
+   Затем выходим из telnet'а:
+    q
+   И смотрим в аутпут tcpdump'а в терминале №3:
+   
+    23:30:28.020371 IP 127.0.0.1.42420 > 127.0.0.1.12345: Flags [F.], seq 1, ack 1, win 342, options [nop,nop,TS val 3256972 ecr 2958826], length 0
+    23:30:28.020561 IP 127.0.0.1.12345 > 127.0.0.1.42420: Flags [F.], seq 1, ack 2, win 342, options [nop,nop,TS val 3256972 ecr 3256972], length 0
+    23:30:28.020571 IP 127.0.0.1.42420 > 127.0.0.1.12345: Flags [.], ack 2, win 342, options [nop,nop,TS val 3256972 ecr 3256972], length 0
+
+  Это пакеты, пойманные во время разрыва соединения
+  
+ 4. run tcpdump and request any http site in separate session. Find HTTP request and answer packets with ASCII data in it.  Tcpdump command must be as strict as possible to capture only needed packages for this http request.
+  
+  Терминал №1:
+   
+   tcpdump -i enp0s3 -nn port 80
+   
+  Терминал №2:
+  
+   curl google.com
+   
+  Смотрим в аутпут терминала №1:
+  
+    23:47:52.365231 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [S], seq 3713333161, win 29200, options [mss 1460,sackOK,TS val 4301317 ecr 0,nop,wscale 7], length 0
+    23:47:52.376615 IP 74.125.205.101.80 > 10.0.2.15.50506: Flags [S.], seq 14464001, ack 3713333162, win 65535, options [mss 1460], length 0
+    23:47:52.376659 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [.], ack 1, win 29200, length 0
+    23:47:52.376817 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [P.], seq 1:75, ack 1, win 29200, length 74: HTTP: GET / HTTP/1.1
+    23:47:52.377157 IP 74.125.205.101.80 > 10.0.2.15.50506: Flags [.], ack 75, win 65535, length 0
+    23:47:52.671435 IP 74.125.205.101.80 > 10.0.2.15.50506: Flags [P.], seq 1:529, ack 75, win 65535, length 528: HTTP: HTTP/1.1 301 Moved Permanently
+    23:47:52.671486 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [.], ack 529, win 30016, length 0
+    23:47:52.671665 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [F.], seq 75, ack 529, win 30016, length 0
+    23:47:52.671982 IP 74.125.205.101.80 > 10.0.2.15.50506: Flags [.], ack 76, win 65535, length 0
+    23:47:52.681908 IP 74.125.205.101.80 > 10.0.2.15.50506: Flags [F.], seq 529, ack 76, win 65535, length 0
+    23:47:52.681946 IP 10.0.2.15.50506 > 74.125.205.101.80: Flags [.], ack 530, win 30016, length 0
+
+  "Find HTTP request and answer packets with ASCII data in it"
+  
+   Терминал №1:
+   tcpdump -A -i enp0s3 -nn port 80
+  
+   Терминал №2:
+   curl google.com
+  
+  Смотрим вывод терминала №1:
+  
+   23:51:22.663863 IP 10.0.2.15.40198 > 74.125.205.113.80: Flags [.], ack 529, win 30016, length 0
+    E..(N @.@...
+    ...J}.q...P...M....P.u@$...
+    23:51:22.664128 IP 10.0.2.15.40198 > 74.125.205.113.80: Flags [F.], seq 75, ack 529, win 30016, length 0
+    E..(N!@.@...
+    ...J}.q...P...M....P.u@$...
+    23:51:22.664364 IP 74.125.205.113.80 > 10.0.2.15.40198: Flags [.], ack 76, win 65535, length 0
+    E..(....@...J}.q
+    ....P.........NP....%........
+    23:51:22.677081 IP 74.125.205.113.80 > 10.0.2.15.40198: Flags [F.], seq 529, ack 76, win 65535, length 0
+    E..(....@...J}.q
+    ....P.........NP....$........
+    23:51:22.677124 IP 10.0.2.15.40198 > 74.125.205.113.80: Flags [.], ack 530, win 30016, length 0
+    E..(X.@.@...
+    ...J}.q...P...N....P.u@....
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
