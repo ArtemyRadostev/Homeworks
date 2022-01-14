@@ -1,1 +1,177 @@
+## Boot process
 
+1. enable recovery options for grub, update main configuration file and find new item in grub2 config in /boot.
+
+  vi /etc/default/grub
+    Содержимое:
+      
+      GRUB_TIMEOUT=5
+      GRUB_DISTRIBUTOR="$(sed 's, release .*$,,g' /etc/system-release)"
+      GRUB_DEFAULT=saved
+      GRUB_DISABLE_SUBMENU=true
+      GRUB_TERMINAL_OUTPUT="console"
+      GRUB_CMDLINE_LINUX="crashkernel=auto spectre_v2=retpoline rd.lvm.lv=centos/root rd.lvm.lv=centos/swap rhgb quiet"
+      GRUB_DISABLE_RECOVERY="true"
+
+    Change line GRUB_DISABLE_RECOVERY="true" to GRUB_DISABLE_RECOVERY="false"
+    Run grub2-mkconfig to re-generate the /boot/grub2/grub.cfg file
+    grub2-mkconfig –o /boot/grub2/grub.cfg
+    Looking for configuration file:
+    
+     ls /boot/grub2 | grep grub
+      Вывод:
+        
+        grub.cfg
+        grubenv
+     
+2.  modify option vm.dirty_ratio:
+   # Ищем имя параметра:
+    
+    sysctl -a | grep dirty
+    Output:
+    
+      vm.dirty_ratio = 30
+    
+   # "vm." означает, что конфиг находится в директории "vm", т.е. в /proc/sys/vm/.
+   - using echo utility
+   
+    sudo sh -c 'echo 29 > /proc/sys/vm/dirty_ratio'
+    cat /proc/sys/vm/dirty_ratio
+     # Вывод:
+        
+        29
+   
+   - using sysctl utility
+   
+    sysctl -w vm.dirty_ratio=30 # (not persistent)
+   
+   - using sysctl configuration files
+   
+    vi /etc/sysctl.conf
+      #Добавляем строку:
+      
+        vm.dirty_ratio=29
+        
+   # Применяем:
+    
+      sysctl -p
+      
+    
+    
+*1. Inspect initrd file contents. Find all files that are related to XFS filesystem and give a short description for every file.
+
+	locate initframfs # Находим образ.
+	mkdir justadir
+	cp /boot/initramfs-3.10.0-1160.el7.x86_64.img ~/justadir/
+	cd ~/justadir
+	file initramfs-3.10.0-1160.el7.x86_64.img # Проверяем расширение.
+		Вывод:
+		
+			initramfs-3.10.0-1160.el7.x86_64.img: ASCII cpio archive (SVR4 with no CRC)
+			
+	*cpio archive*
+
+	lsinitrd initramfs-3.10.0-1160.el7.x86_64.img | more
+		Вывод:
+			
+			Arguments: -f
+
+			dracut modules:
+			bash
+			nss-softokn
+			i18n
+			network
+			ifcfg
+			drm
+			plymouth
+			dm
+			kernel-modules
+			lvm
+			qemu
+			resume
+			rootfs-block
+			terminfo
+			udev-rules
+			biosdevname
+			systemd
+			usrmount
+			base
+			fs-lib
+			microcode_ctl-fw_dir_override
+			shutdown
+			========================================================================
+			drwxr-xr-x  12 root     root            0 Jan 12 19:10 .
+			crw-r--r--   1 root     root       5,   1 Jan 12 19:10 dev/console
+			crw-r--r--   1 root     root       1,  11 Jan 12 19:10 dev/kmsg
+			crw-r--r--   1 root     root       1,   3 Jan 12 19:10 dev/null
+			lrwxrwxrwx   1 root     root            7 Jan 12 19:10 bin -> usr/bin
+			drwxr-xr-x   2 root     root            0 Jan 12 19:10 dev
+			drwxr-xr-x  12 root     root            0 Jan 12 19:10 etc
+			drwxr-xr-x   2 root     root            0 Jan 12 19:10 etc/cmdline.d
+			drwxr-xr-x   2 root     root            0 Jan 12 19:10 etc/conf.d
+			-rw-r--r--   1 root     root          124 Jan 12 19:10 etc/conf.d/systemd.conf
+			-rw-r--r--   1 root     root          262 Sep 30 18:57 etc/dhclient.conf
+			-rw-r--r--   1 root     root            0 Jan 12 19:10 etc/fstab.empty
+			-rw-r--r--   1 root     root          174 Jan 12 19:10 etc/group
+			-rw-r--r--   1 root     root           22 Jan 12 19:10 etc/hostname
+			-rw-r--r--   1 root     root          170 Jan 12 19:10 etc/initrd-release
+			-rw-r--r--   1 root     root         6687 Jan 12 19:10 etc/ld.so.cache
+			-rw-r--r--   1 root     root           28 Feb 28  2013 etc/ld.so.conf
+			drwxr-xr-x   2 root     root            0 Jan 12 19:10 etc/ld.so.conf.d
+			-rw-r--r--   1 root     root           26 Oct 13 18:54 etc/ld.so.conf.d/bind-export-x86_64.conf
+			-r--r--r--   1 root     root           63 Oct 19 19:23 etc/ld.so.conf.d/kernel-3.10.0-1160.el7.x86_64.conf
+			-rw-r--r--   1 root     root           17 Oct  1 19:55 etc/ld.so.conf.d/mariadb-x86_64.conf
+			drwxr-xr-x   2 root     root            0 Jan 12 19:10 etc/libnl
+			-rw-r--r--   1 root     root         1130 Aug  3  2017 etc/libnl/classid
+		*more*
+	
+	(cpio -id; zcat | cpio -id)  < initramfs-3.10.0-1160.el7.x86_64.img # Распаковываем содержимое
+	find /home/artemy/justadir -name *xfs* # Ищем файлы, в названии которых присутствует "xfs".
+		Вывод:
+		
+			/home/art/justadir/usr/sbin/xfs_db # Дебаг тул. Используется для исправления ошибок в файловой системе xfs.
+			/home/art/justadir/usr/sbin/xfs_repair # Название говорит само за себя: используется для "починки" поврежденных или неправильно настроенных XFS-файлов.
+			/home/art/justadir/usr/sbin/xfs_metadump # Копирование метаданных в файл.
+			/home/art/justadir/usr/sbin/fsck.xfs # Проверка файловой системы на наличие ошибок.
+			/home/art/justadir/usr/lib/modules/3.10.0-1160.el7.x86_64/kernel/fs/xfs # Журналируемая файловая система, позволяющая использовать блочные устройства большого объема (более 16 ТБ).
+			/home/art/justadir/usr/lib/modules/3.10.0-1160.el7.x86_64/kernel/fs/xfs/xfs.ko.xz # Сжатый модуль ядра xfs.
+      
+      
+*2. Study dracut utility that is used for rebuilding initrd image. Give an example for adding driver/kernel module for your initrd and recreating it.
+
+	dracut --add-drivers Имя_initrd_файла_с_названием модуля.img # Добавить kernel-модуль.  ~ Список модулей разделяется пробелом.
+	dracut -f # Пересоздать/переписать initramfs-файл. ~ Ключ -f заменяет уже существующий initramfs-файл.
+  
+*3. Explain the difference between ordinary and rescue initrd images.
+
+	"Rescue image" больше по размеру, т.к. они машино-зависимы. "Бутаются" на каждой системе.
+	"Odinary image" не включают некоторые модули, которые не нужны машине, на которой установлены. Не могут "бутаться" на другой системе кроме той, на которой установлены.
+
+
+## Selinux
+
+Disable selinux using kernel cmdline
+
+  vi /etc/sysconfig/selinux -> "SELINUX=enforcing" меняем на "SELINUX=disabled"
+  
+
+## Firewalls
+
+1. Add rule using firewall-cmd that will allow SSH access to your server *only* from network 192.168.56.0/24 and interface enp0s8 (if your network and/on interface name differs - change it accordingly).
+
+  		firewall-cmd --zone=public --add-source=192.168.56.1/24
+		  firewall-cmd --zone=public --add-interface=enp0s8
+		  firewall-cmd --zone=public --remove-interface=enp0s3
+
+2. Shutdown firewalld and add the same rules via iptables.
+  
+  
+  
+  		systemctl stop firewalld
+		  iptables -A INPUT -p tcp --dport 22 -s 192.168.56.1/24 -j ACCEPT
+		  iptables -A INPUT -p tcp --dport 22 -s 127.0.0.0/8 -j ACCEPT
+		  iptables -A INPUT -p tcp --dport 22 -j DROP
+		  iptables -A INPUT -i eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT
+		  iptables -A INPUT -i eth0 -p tcp --dport 22 -j ACCEPT
+		  iptables -A INPUT -i eth0 -j DROP
+  
