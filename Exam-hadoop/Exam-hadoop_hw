@@ -66,8 +66,16 @@
         
 4.Скачать архив с Hadoop версии 3.1.2 (https://hadoop.apache.org/release/3.1.2.html)
 	
-		yum install -y wget
-		wget -O /opt/hadoop-3.1.2/ https://archive.apache.org/dist/hadoop/common/hadoop-3.1.2/hadoop-3.1.2.tar.gz
+	yum install -y wget
+	cd /opt
+	wget https://archive.apache.org/dist/hadoop/common/hadoop-3.1.2/hadoop-3.1.2.tar.g	
+		
+		
+5. Распаковать содержимое архива в /opt/hadoop-3.1.2/
+		
+	tar -xf hadoop-3.1.2.tar.gz -C /opt
+        
+        
+6. Сделать симлинк /usr/local/hadoop/current/ на директорию /opt/hadoop-3.1.2/
 
-        
-        
+	
