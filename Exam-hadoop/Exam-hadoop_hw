@@ -78,4 +78,184 @@
         
 6. Сделать симлинк /usr/local/hadoop/current/ на директорию /opt/hadoop-3.1.2/
 
+	ln -s /opt/hadoop-3.1.2 /usr/local/hadoop/current
 	
+
+7. Создать пользователей hadoop, yarn и hdfs,а также группу hadoop, в которую необходимо добавить всех этих пользователей
+	
+	useradd hadoop
+	useradd yarn
+	useradd hdfs
+	groupadd hadoop ~ Уже существует?
+	usermod -a -G hadoop hadoop
+	usermod -a -G hadoop yarn
+	usermod -a -G hadoop hdfs
+	
+8. Создать для обоих дополнительных дисков разделы размером в 100% диска.
+	
+	parted /dev/sdb
+	 mklabel gpt
+	 mkpart gpt <- Имя партиции
+	 ext2 - File System
+	 0% - Start
+	 100% - End
+	 q
+	fdisk /dev/sdb
+	 t
+	 partition type -> 31 (Linux LVM)
+	 w
+			
+	*Делаю аналогичные действия с /dev/sdc*
+	
+9. Инициализировать разделы из п.8 в качестве физических томов для LVM.
+	
+	pvcreate /dev/sdb1
+	pvcreate /dev/sdc1
+	
+10. Создать две группы LVM и добавить в каждую из них по одному физическому тому из п.9.
+	
+	vgcreate LVM_1 /dev/sdb1 # Имя группы LVM_1
+	vgcreate LVM_2 /dev/sdc1 # Имя группы LVM_2
+	
+11. В каждой из групп из п.10 создать логический том LVM размером 100% группы.
+	
+	lvcreate -l +100%FREE -n LVM_1_1 LVM_1 ~ Имя лог. тома осталось sdb1
+	lvcreate -l +100%FREE -n LVM_1_2 LVM_2
+	fdisk -l # Смотрю список и имена томов -> /dev/mapper/LVM_1-LVM_1_1 и /dev/mapper/LVM_2-LVM_1_2. Пути для Worker'а: /dev/LVM_1/LVM_1_1 и /dev/LVM_2/LVM_2_1
+	# lvdisplay # АЛьтернативный вариант просмотра лог. томов
+	
+12.На каждом логическом томе LVM создать файловую систему ext4.
+	mkfs.ext4 /dev/LVM_1/LVM_1_1
+	mkfs.ext4 /dev/LVM_2/LVM_1_2 # mkfs.ext4 /dev/LVM_2/LVM_2_1 для Worker'а
+	blkid
+	 Вывод:
+	  Headnode: 
+		/dev/mapper/LVM_1-LVM_1_1: UUID="939555b2-a34d-4fc2-8102-f36c10081048" TYPE="ext4"
+		/dev/mapper/LVM_2-LVM_1_2: UUID="60ac1a4e-1bbf-4312-932c-3a1a4c9a128f" TYPE="ext4"
+	  Worker:
+	  	/dev/mapper/LVM_1-LVM_1_1: UUID="a6607448-1f41-4b36-9c06-e69c7165133d" TYPE="ext4"
+		/dev/mapper/LVM_2-LVM_2_1: UUID="239b8f4b-fc73-4b1d-9a8a-eeed883904ef" TYPE="ext4"
+		
+13. Создать директории и использовать их в качестве точек монтирования файловых систем из п.12:
+	•/opt/mount1
+	•/opt/mount
+
+	mkdir /opt/mount1
+	mkdir /opt/mount2
+	 Headnode:
+		mount /dev/mapper/LVM_1-LVM_1_1 /opt/mount1
+		mount /dev/mapper/LVM_2-LVM_1_2 /opt/mount2
+	Worker:
+		mount /dev/mapper/LVM_1-LVM_1_1 /opt/mount1
+		mount /dev/mapper/LVM_2-LVM_2_1 /opt/mount2
+
+14. Настроить систему так, чтобы монтирование происходило автоматически при запуске системы. Произвести монтирование новых файловых систем.
+	
+	Headonde:
+	 vi /etc/fstab
+	  Добавляю строки:
+			
+		UUID=939555b2-a34d-4fc2-8102-f36c10081048       /opt/mount1     ext4    defaults        0 0
+		UUID=60ac1a4e-1bbf-4312-932c-3a1a4c9a128f       /opt/mount2     ext4    defaults        0 0
+
+	Worker:
+	 vi /etc/fstab
+	  Добавляю строки:
+	  
+	  	UUID=a6607448-1f41-4b36-9c06-e69c7165133d       /opt/mount1     ext4    defaults        0 0
+		UUID=239b8f4b-fc73-4b1d-9a8a-eeed883904ef       /opt/mount2     ext4    defaults        0 0
+
+
+	*ребутаю системы*
+	df
+	 Вывод:
+	  
+	  Headnode:
+	  
+	  	/dev/mapper/LVM_2-LVM_1_2   5025408   20472   4726616   1% /opt/mount2
+		/dev/mapper/LVM_1-LVM_1_1   5025408   20472   4726616   1% /opt/mount1
+
+	  Worker:
+
+		/dev/mapper/LVM_2-LVM_2_1   5025408   20472   4726616   1% /opt/mount2
+		/dev/mapper/LVM_1-LVM_1_1   5025408   20472   4726616   1% /opt/mount1
+
+
+
+Для VM1(шаги 15-16):
+		
+15. После монтирования создать 2 директории для хранения файлов Namenode сервиса HDFS:		
+•/opt/mount1/namenode-dir
+•/opt/mount2/namenode-dir
+
+	mkdir /opt/mount1/namenode-dir
+	mkdir /opt/mount2/namenode-dir
+
+
+16. Сделать пользователя hdfs и группу hadoop владельцами этих директорий.
+
+	chown -R hdfs /opt/mount1/namenode-dir
+	chown -R hadoop /opt/mount1/namenode-dir
+	chgrp hadoop /opt/mount1/namenode-dir 
+	chown -R hdfs /opt/mount2/namenode-dir
+	chgrp hadoop /opt/mount2/namenode-dir
+	
+Для VM2 (шаги 17-20):
+	
+17. После монтирования создать 2 директории для хранения файлов Datanode сервиса HDFS:		
+•/opt/mount1/datanode-dir
+•/opt/mount2/datanode-dir
+
+	mkdir /opt/mount1/datanode-dir
+	mkdir /opt/mount2/datanode-dir
+
+
+18. Сделать пользователя hdfs и группу hadoop владельцами директорий из п.17
+		
+	chown -R hdfs /opt/mount1/datanode-dir
+	chgrp hadoop /opt/mount1/datanode-dir
+	chown -R hdfs /opt/mount2/datanode-dir
+	chgrp hadoop /opt/mount2/datanode-dir
+	
+19. Создать дополнительные 4 директории для Nodemanager сервиса YARN:		
+•/opt/mount1/nodemanager-local-dir
+•/opt/mount2/nodemanager-local-dir
+•/opt/mount1/nodemanager-log-dir
+•/opt/mount2/nodemanager-log-dir
+		
+	mkdir /opt/mount1/nodemanager-local-dir
+	mkdir /opt/mount2/nodemanager-local-dir
+	mkdir /opt/mount1/nodemanager-log-dir
+	mkdir /opt/mount2/nodemanager-log-dir
+	
+20. Сделать пользователя yarn и группу hadoop владельцами директорий из п.19.
+		
+	chown -R yarn /opt/mount1/nodemanager-local-dir
+	chgrp hadoop /opt/mount1/nodemanager-local-dir
+	chown -R yarn /opt/mount2/nodemanager-local-dir
+	chgrp hadoop /opt/mount2/nodemanager-local-dir
+	chown -R yarn /opt/mount1/nodemanager-log-dir
+	chgrp hadoop /opt/mount1/nodemanager-log-dir
+	chown -R yarn /opt/mount2/nodemanager-log-dir
+	chgrp hadoop /opt/mount2/nodemanager-log-dir
+	chmod -R 775 /opt # Задаю права, на всякий пожарный
+	
+Для обеих машин:
+	
+21. Настроить доступ по SSH, используя ключи для пользователя hadoop.
+		
+	su - hadoop
+	ssh-keygen -t rsa
+	ssh-copy-id headnode
+	ssh-copy-id worker
+		
+22. Добавить VM1 и VM2 в /etc/hosts.
+		
+	echo '192.168.56.120 headnode' >> /etc/hosts
+	echo '192.168.56.119 wser' >> /etc/hosts
+			
+	VM1: hostnamectl set-hostname headnode
+	VM2: hostnamectl set-hostname worker
+			
+	VM1: ping worker -> *пингуется*
+	VM2: ping headnode -> *пингуется*
