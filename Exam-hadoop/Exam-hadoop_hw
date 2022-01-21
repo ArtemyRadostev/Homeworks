@@ -48,7 +48,7 @@
   
 3. Установить OpenJDK8 из репозитория CentOS
 		
-	 sudo yum install -y java-1.8.0-openjdk
+	sudo yum install -y java-1.8.0-openjdk
 	/etc/profile.d/java.sh
 		Содержимое:
 			
@@ -63,6 +63,10 @@
         openjdk version "1.8.0_312"
         OpenJDK Runtime Environment (build 1.8.0_312-b07)
         OpenJDK 64-Bit Server VM (build 25.312-b07, mixed mode)
+	
+	alternatives --config java # Попытка выяснить хоум директорию джавы
+	Вывод:
+	      /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.312.b07-1.el7_9.x86_64/jre/bin/java
         
 4.Скачать архив с Hadoop версии 3.1.2 (https://hadoop.apache.org/release/3.1.2.html)
 	
@@ -194,11 +198,10 @@
 
 16. Сделать пользователя hdfs и группу hadoop владельцами этих директорий.
 
-	chown -R hdfs /opt/mount1/namenode-dir
-	chown -R hadoop /opt/mount1/namenode-dir
-	chgrp hadoop /opt/mount1/namenode-dir 
-	chown -R hdfs /opt/mount2/namenode-dir
-	chgrp hadoop /opt/mount2/namenode-dir
+	 chown hdfs:hadoop /opt/mount2/namenode-dir
+	 chown hdfs:hadoop /opt/mount1/namenode-dir
+	 chmod 775 /opt/mount1/namenode-dir
+	 chmod 775 /opt/mount2/namenode-dir
 	
 Для VM2 (шаги 17-20):
 	
@@ -244,6 +247,9 @@
 	
 21. Настроить доступ по SSH, используя ключи для пользователя hadoop.
 		
+	# echo '192.168.56.120 headnode' >> /etc/hosts
+	# echo '192.168.56.119 worker' >> /etc/hosts
+	
 	su - hadoop
 	ssh-keygen -t rsa
 	ssh-copy-id headnode
@@ -251,11 +257,141 @@
 		
 22. Добавить VM1 и VM2 в /etc/hosts.
 		
-	echo '192.168.56.120 headnode' >> /etc/hosts
-	echo '192.168.56.119 wser' >> /etc/hosts
+	echo '192.168.56.120 headnode' >> /etc/hosts # Было сделано заранее
+	echo '192.168.56.119 worker' >> /etc/hosts # Было сделано заранее
 			
-	VM1: hostnamectl set-hostname headnode
-	VM2: hostnamectl set-hostname worker
+	VM1: hostnamectl set-hostname headnode # Было сделано заранее
+	VM2: hostnamectl set-hostname worker	# Было сделано заранее
 			
 	VM1: ping worker -> *пингуется*
 	VM2: ping headnode -> *пингуется*
+
+23.Скачать файлы по ссылкам в /usr/local/hadoop/current/etc/hadoop/{hadoop-env.sh,core-site.xml,hdfs-site.xml,yarn-site.xml}. При помощи sed заменить заглушки на необходимые значения
+		
+•hadoop-env.sh (https://gist.githubusercontent.com/rdaadr/2f42f248f02aeda18105805493bb0e9b/raw/6303e424373b3459bcf3720b253c01373666fe7c/hadoop-env.sh)
+
+	mkdir -p /usr/local/hadoop/current/etc/hadoop
+	wget -O /usr/local/hadoop/current/etc/hadoop/hadoop-env.sh https://gist.github.com/rdaadr/2f42f248f02aeda18105805493bb0e9b/raw/6303e424373b3459bcf3720b253c01373666fe7c/hadoop-env.sh
+	sed -ie 's/\"\%PATH_TO_OPENJDK8_INSTALLATION\%\"/\/usr\/lib\/jvm\/java-1.8.0-openjdk-1.8.0.312.b07-1.el7_9.x86_64\/jre\/bin\/java/g' /usr/local/hadoop/current/etc/hadoop/hadoop-env.sh
+	sed -i 's|HADOOP_HOME=*|HADOOP_HOME=/usr/local/hadoop/current|' /usr/local/hadoop/current/etc/hadoop/hadoop-env.sh
+	sed -ie 's/\"\%HADOOP_HEAP_SIZE\%\"/512M/g' /usr/local/hadoop/current/etc/hadoop/hadoop-env.sh
+		
+•core-site.xml (https://gist.githubusercontent.com/rdaadr/64b9abd1700e15f04147ea48bc72b3c7/raw/2d416bf137cba81b107508153621ee548e2c877d/core-site.xml)
+
+	wget -O /usr/local/hadoop/current/etc/hadoop/core-site.xml https://gist.githubusercontent.com/rdaadr/64b9abd1700e15f04147ea48bc72b3c7/raw/2d416bf137cba81b107508153621ee548e2c877d/core-site.xml
+	sudo sed -i 's|%HDFS_NAMENODE_HOSTNAME%|headnode|' /usr/local/hadoop/current/etc/hadoop/core-site.xml
+
+•hdfs-site.xml (https://gist.githubusercontent.com/rdaadr/2bedf24fd2721bad276e416b57d63e38/raw/640ee95adafa31a70869b54767104b826964af48/hdfs-site.xml)
+
+	wget -O /usr/local/hadoop/current/etc/hadoop/hdfs-site.xml https://gist.githubusercontent.com/rdaadr/2bedf24fd2721bad276e416b57d63e38/raw/640ee95adafa31a70869b54767104b826964af48/hdfs-site.xml
+	vi /usr/local/hadoop/current/etc/hadoop/hdfs-site.xm
+	-------------------------------------hdfs-site.xml-------------------------------------------	
+				<!-- Put site-specific property overrides in this file. -->
+
+				<configuration>
+				  <property>
+					  <name>dfs.namenode.name.dir</name>
+					  <value>/opt/mount1/namenode-dir,/opt/mount2/namenode-dir</value>
+				  </property>
+				  <property>
+					  <name>dfs.datanode.data.dir</name>
+					  <value>/opt/mount1/datanode-dir,/opt/mount2/datanode-dir</value>
+				  </property>
+				  <property>
+					  <name>dfs.replication</name>
+					  <value>1</value>
+				  </property>
+				</configuration>
+				~
+•yarn-site.xml (https://gist.githubusercontent.com/Stupnikov-NA/ba87c0072cd51aa85c9ee6334cc99158/raw/bda0f760878d97213196d634be9b53a089e796ea/yarn-site.xml)
+	
+	wget -O /usr/local/hadoop/current/etc/hadoop/yarn-site.xml https://gist.githubusercontent.com/Stupnikov-NA/ba87c0072cd51aa85c9ee6334cc99158/raw/bda0f760878d97213196d634be9b53a089e796ea/yarn-site.xml
+	----------------------------yarn-site.xml----------------------------------------------
+					<configuration>
+						<property>
+							<name>yarn.acl.enable</name>
+							<value>false</value>
+						</property>
+						<property>
+							<name>yarn.resourcemanager.hostname</name>
+							<value>VM1</value>
+						</property>
+						<property>
+							<name>yarn.scheduler.minimum-allocation-mb</name>
+							<value>128</value>
+						</property>
+						<property>
+							<name>yarn.scheduler.maximum-allocation-mb</name>
+							<value>256</value>
+						</property>
+						<property>
+							<name>yarn.nodemanager.resource.memory-mb</name>
+							<value>256</value>
+						</property>
+						<property>
+							<name>yarn.nodemanager.local-dirs</name>
+							<value>/opt/mount1/nodemanager-local-dir,/opt/mount2/nodemanager-local-dir</value>
+						</property>
+						<property>
+							<name>yarn.nodemanager.log-dirs</name>
+							<value>/opt/mount1/nodemanager-log-dir,/opt/mount2/nodemanager-log-dir</value>
+						</property>
+					</configuration>
+24. Задать переменную окружения HADOOP_HOME через /etc/profile 
+
+	echo export HADOOP_HOME=/usr/local/hadoop/current >> /etc/profile
+	
+Для VM1(шаги 25-26):
+	
+25. Произвести форматирование HDFS (от имени пользователя hdfs):
+•$HADOOP_HOME/bin/hdfs namenode -format cluster1
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
