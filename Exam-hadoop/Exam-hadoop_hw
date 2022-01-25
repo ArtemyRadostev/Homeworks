@@ -13,6 +13,11 @@
   Добавляю:    
    
    exam	ALL=(ALL)	ALL
+   
+# Далее:
+
+## Same thing without a password
+%wheel  ALL=(ALL)       NOPASSWD: ALL   
   
 # Помимо этого, настраиваю запуск интерфейса enp0s8 при буте:
 
