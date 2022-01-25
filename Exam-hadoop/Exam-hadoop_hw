@@ -7,7 +7,7 @@
 # Настраиваю ему использование sudo без пароля:
 
    su root
-	 sudo visudo
+   sudo visudo
       
 # Под строкой "#Allow root to run any commands anywhere"
   Добавляю:    
@@ -346,7 +346,7 @@
 25. Произвести форматирование HDFS (от имени пользователя hdfs):
 •$HADOOP_HOME/bin/hdfs namenode -format cluster1
 
-	chmod -R 775 $HADOOP_HOME
+	chmod -R 775 $HADOOP_HOME # Забыл про права
 	su hdfs
 	HADOOP_HOME/bin/hdfs namenode -format cluster1
 	
